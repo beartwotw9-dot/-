@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Upload, Camera, Images } from 'lucide-react';
+import React, { useRef, useState, useId } from 'react';
+import { Camera, Images } from 'lucide-react';
 
 interface ImageUploaderProps {
   onImagesSelected: (files: File[]) => void;
@@ -10,6 +10,7 @@ interface ImageUploaderProps {
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, isProcessing, className = "" }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
+  const inputId = useId();
 
   const handleFiles = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -53,12 +54,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, isProce
       onClick={() => fileInputRef.current?.click()}
     >
       <input
+        id={`file-upload-${inputId}`}
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
         className="hidden"
         onChange={handleChange}
+        title="上傳圖片"
       />
       
       <div className="flex flex-col items-center gap-3">
@@ -66,9 +69,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, isProce
           <Images className="w-6 h-6 text-blue-600" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-slate-800">上傳圖片</h3>
-          <p className="text-xs text-slate-500 mt-1">
-            可一次選取多張圖片（請款單＋發票）
+          <h3 className="text-sm font-bold text-slate-800">上傳圖片</h3>
+          <p className="text-[10px] text-slate-500 mt-1">
+            可選取多張圖片（請款單與發票對照）
           </p>
         </div>
         <div className="flex gap-2 mt-1">
@@ -78,9 +81,9 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onImagesSelected, isProce
                 e.stopPropagation();
                 fileInputRef.current?.click(); 
              }}
-             className="px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-xs font-semibold text-white hover:bg-blue-700 transition-colors flex items-center gap-1.5 shadow-sm"
+             className="px-3 py-1.5 bg-blue-600 border border-transparent rounded-lg text-[10px] font-bold text-white hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
            >
-             <Camera className="w-4 h-4" /> 選擇多張照片
+             <Camera className="w-3.5 h-3.5" /> 選擇照片
            </button>
         </div>
       </div>

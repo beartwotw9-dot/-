@@ -14,6 +14,11 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const generateUniqueId = () => {
+  // Combine timestamp with high-entropy random string for true uniqueness across multiple uploads
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 11);
+};
+
 export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceItem[]> => {
   if (!process.env.API_KEY) {
     throw new Error("API Key is missing.");
@@ -80,7 +85,7 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
     const rawData = JSON.parse(response.text || "[]");
     
     return rawData.map((item: any) => {
-      const id = Math.random().toString(36).substring(2, 9);
+      const id = generateUniqueId();
       const type = (['AIM', 'BIM', 'DIM'].includes(item.expenseType) ? item.expenseType : 'AIM') as ExpenseType;
       const datePart = item.proofDate && item.proofDate !== '0' ? item.proofDate.replace(/-/g, '').substring(2) : '000000';
       
@@ -88,7 +93,6 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
       const recAmt = item.auditReceiptAmount || 0;
       const matched = reqAmt > 0 && recAmt > 0 && Math.abs(reqAmt - recAmt) < 1;
 
-      // Handle Employee logic: payee same as handledBy if one is missing or for BIM type
       let finalPayee = item.payee || '0';
       let finalHandledBy = item.handledBy || '0';
       if (type === 'BIM') {
