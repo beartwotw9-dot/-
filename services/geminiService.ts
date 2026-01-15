@@ -14,9 +14,14 @@ export const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+// Global counter and high-entropy generator for 100% unique IDs
+let idSequence = 0;
 const generateUniqueId = () => {
-  // Combine timestamp with high-entropy random string for true uniqueness across multiple uploads
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 11);
+  idSequence += 1;
+  const randomPart = typeof crypto !== 'undefined' && crypto.randomUUID 
+    ? crypto.randomUUID().substring(0, 8) 
+    : Math.random().toString(36).substring(2, 10);
+  return `row-${Date.now()}-${idSequence}-${randomPart}`;
 };
 
 export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceItem[]> => {
@@ -67,13 +72,11 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
       contents: {
         parts: [
           ...imageParts,
-          { text: `You are an accounting specialist. Extract exactly 19 fields from the provided images (Payment Request Forms paired with Receipts/Invoices).
-          
-          RULES:
-          1. FOR MISSING DATA: Return "0" for string fields and 0 for numeric fields. Never leave a field empty.
-          2. BIM (EMPLOYEE) RULE: For employee expense reports (BIM), the 'payee' (收款人) must be the same as the 'handledBy' (經辦人).
-          3. TAX LOGIC: If the document does not support tax deduction (or if tax is not listed), set 'tax' to 0 and 'amountExclTax' exactly equal to the 'totalAmount'.
-          4. AUDIT: Compare the sum on the request form vs the receipt. Return these in auditRequestAmount and auditReceiptAmount.` }
+          { text: `You are an accounting specialist. Extract 19 fields from these images.
+          Rules:
+          1. BIM (Employee): Payee MUST match HandledBy.
+          2. Tax: If missing, set to 0.
+          3. Audit: Compare request amount vs receipt amount.` }
         ]
       },
       config: {
@@ -93,26 +96,18 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
       const recAmt = item.auditReceiptAmount || 0;
       const matched = reqAmt > 0 && recAmt > 0 && Math.abs(reqAmt - recAmt) < 1;
 
-      let finalPayee = item.payee || '0';
-      let finalHandledBy = item.handledBy || '0';
-      if (type === 'BIM') {
-        const name = (finalPayee !== '0' ? finalPayee : finalHandledBy);
-        finalPayee = name;
-        finalHandledBy = name;
-      }
-
       return {
         id,
-        requestNo: `${type}-${datePart}-${id.substring(0, 4).toUpperCase()}`,
+        requestNo: item.requestNo && item.requestNo !== '0' ? item.requestNo : `${type}-${datePart}-${id.substring(id.length - 4).toUpperCase()}`,
         projectNo: item.projectNo || '0',
         projectName: item.projectName || '0',
         customer: item.customer || '0',
         bankCode: item.bankCode || '0',
         bankAccount: item.bankAccount || '0',
         totalAmount: item.totalAmount || 0,
-        payee: finalPayee,
+        payee: item.payee || '0',
         description: item.description || '0',
-        handledBy: finalHandledBy,
+        handledBy: item.handledBy || '0',
         proofDate: item.proofDate || '0',
         invoiceNo: item.invoiceNo || '0',
         sellerTaxId: item.sellerTaxId || '0',

@@ -18,10 +18,8 @@ const App: React.FC = () => {
       setErrorMsg(null);
       
       const base64Array = await Promise.all(files.map(f => fileToBase64(f)));
-      
       setCurrentImages(base64Array);
 
-      // Process all images together to let Gemini pair them
       const extractedData = await scanInvoiceImage(base64Array);
       
       setInvoiceData(prevData => [...prevData, ...extractedData]);
@@ -58,7 +56,7 @@ const App: React.FC = () => {
   const isScanning = status === ProcessingStatus.SCANNING;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20" translate="no">
       <input 
         type="file" 
         ref={hiddenInputRef} 
@@ -72,11 +70,11 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-2 rounded-lg text-white shadow-md">
-              <FileStack className="w-6 h-6" />
+              <FileStack className="w-6 h-6" translate="no" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">請款稽核系統</h1>
-              <p className="text-xs text-slate-500 font-medium">AI 金額核對 • 請款單 vs 憑證</p>
+              <p className="text-xs text-slate-500 font-medium tracking-tight">AI 金額核對 • 請款單 vs 憑證</p>
             </div>
           </div>
           {showResults && (
@@ -89,13 +87,12 @@ const App: React.FC = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 relative">
-        
         {isScanning && showResults && (
           <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center backdrop-blur-sm">
             <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-bounce-in max-w-sm text-center">
-              <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+              <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" translate="no" />
               <h3 className="text-lg font-bold text-slate-800">正在執行 AI 金額核對...</h3>
-              <p className="text-sm text-slate-500 mt-2">我們正在比對請款單與發票上的數字是否完全一致，這需要幾秒鐘。</p>
+              <p className="text-sm text-slate-500 mt-2">正在比對請款單與發票上的數字，這需要幾秒鐘。</p>
             </div>
           </div>
         )}
@@ -124,16 +121,16 @@ const App: React.FC = () => {
           <div className="flex flex-col items-center justify-center min-h-[400px]">
             <div className="relative mb-8">
               <div className="absolute inset-0 bg-blue-100 rounded-full animate-ping opacity-25"></div>
-              <Loader2 className="w-16 h-16 text-blue-600 animate-spin relative z-10" />
+              <Loader2 className="w-16 h-16 text-blue-600 animate-spin relative z-10" translate="no" />
             </div>
             <h3 className="text-2xl font-bold text-slate-800">AI 正在審核您的單據</h3>
-            <p className="text-slate-500 mt-3 text-center max-w-xs">這包含文字識別、金額擷取以及兩者間的邏輯核對...</p>
+            <p className="text-slate-500 mt-3 text-center max-w-xs">包含文字識別、金額擷取以及兩者間的邏輯核對...</p>
           </div>
         )}
 
         {status === ProcessingStatus.ERROR && !showResults && (
           <div className="max-w-xl mx-auto mt-8 p-6 bg-red-50 border border-red-200 rounded-xl flex items-start gap-4 shadow-sm">
-            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" translate="no" />
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-red-900">核對啟動失敗</h3>
               <p className="text-red-700 mt-1">{errorMsg}</p>
