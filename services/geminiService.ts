@@ -26,7 +26,7 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
     items: {
       type: Type.OBJECT,
       properties: {
-        expenseType: { type: Type.STRING, description: "AIM (Vendor), BIM (Employee), DIM (Outsource)" },
+        expenseType: { type: Type.STRING, description: "AIM, BIM (Employee), or DIM" },
         projectNo: { type: Type.STRING },
         projectName: { type: Type.STRING },
         customer: { type: Type.STRING },
@@ -45,8 +45,8 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
         subject: { type: Type.STRING },
         paperReceivedDate: { type: Type.STRING, description: "YYYY-MM-DD" },
         paymentDate: { type: Type.STRING, description: "YYYY-MM-DD" },
-        requestFormAmountDetected: { type: Type.NUMBER, description: "Total amount detected specifically on the Request Form" },
-        proofAmountDetected: { type: Type.NUMBER, description: "Total amount detected specifically on the Receipt/Invoice" }
+        auditRequestAmount: { type: Type.NUMBER },
+        auditReceiptAmount: { type: Type.NUMBER }
       },
       required: ["totalAmount", "description"],
     },
@@ -62,33 +62,13 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
       contents: {
         parts: [
           ...imageParts,
-          { text: `You are an expert accounting AI. Analyze the uploaded document pairs (Payment Request Form + Receipt/Invoice).
-          Extract the following 19 fields for each transaction:
-          1. 請款單編號 (Generate code based on type and date)
-          2. 專案編號
-          3. 專案名稱
-          4. 客戶
-          5. 收款行代碼
-          6. 收款帳號
-          7. 支出金額 (Total amount)
-          8. 收款人姓名 (Must match bank account holder)
-          9. 說明
-          10. 經辦人
-          11. 憑證日期
-          12. 發票編號
-          13. 賣方統編
-          14. 未稅金額
-          15. 稅金
-          16. 含稅金額
-          17. 會計科目
-          18. 財務取得紙本日期
-          19. 預計出帳日期
-
+          { text: `You are an accounting specialist. Extract exactly 19 fields from the provided images (Payment Request Forms paired with Receipts/Invoices).
+          
           RULES:
-          - If data is missing or not found, strictly use "0" for strings and 0 for numbers.
-          - For 'BIM' (Employee Expense), 'payee' and 'handledBy' are usually the same.
-          - TAX RULE: If tax is missing or non-deductible per regulations, set 'tax' to 0 and 'amountExclTax' equal to 'totalAmount'.
-          - AUDIT: Compare the total amount on the 'Request Form' vs 'Receipt'. Record both in 'requestFormAmountDetected' and 'proofAmountDetected'.` }
+          1. FOR MISSING DATA: Return "0" for string fields and 0 for numeric fields. Never leave a field empty.
+          2. BIM (EMPLOYEE) RULE: For employee expense reports (BIM), the 'payee' (收款人) must be the same as the 'handledBy' (經辦人).
+          3. TAX LOGIC: If the document does not support tax deduction (or if tax is not listed), set 'tax' to 0 and 'amountExclTax' exactly equal to the 'totalAmount'.
+          4. AUDIT: Compare the sum on the request form vs the receipt. Return these in auditRequestAmount and auditReceiptAmount.` }
         ]
       },
       config: {
@@ -102,24 +82,33 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
     return rawData.map((item: any) => {
       const id = Math.random().toString(36).substring(2, 9);
       const type = (['AIM', 'BIM', 'DIM'].includes(item.expenseType) ? item.expenseType : 'AIM') as ExpenseType;
-      const datePart = item.proofDate ? item.proofDate.replace(/-/g, '').substring(2) : '000000';
+      const datePart = item.proofDate && item.proofDate !== '0' ? item.proofDate.replace(/-/g, '').substring(2) : '000000';
       
-      const formAmt = item.requestFormAmountDetected || 0;
-      const proofAmt = item.proofAmountDetected || 0;
-      const isMatched = formAmt > 0 && proofAmt > 0 && Math.abs(formAmt - proofAmt) < 0.01;
+      const reqAmt = item.auditRequestAmount || 0;
+      const recAmt = item.auditReceiptAmount || 0;
+      const matched = reqAmt > 0 && recAmt > 0 && Math.abs(reqAmt - recAmt) < 1;
+
+      // Handle Employee logic: payee same as handledBy if one is missing or for BIM type
+      let finalPayee = item.payee || '0';
+      let finalHandledBy = item.handledBy || '0';
+      if (type === 'BIM') {
+        const name = (finalPayee !== '0' ? finalPayee : finalHandledBy);
+        finalPayee = name;
+        finalHandledBy = name;
+      }
 
       return {
         id,
-        requestNo: item.requestNo || `${type}-${datePart}-${id.substring(0, 4).toUpperCase()}`,
+        requestNo: `${type}-${datePart}-${id.substring(0, 4).toUpperCase()}`,
         projectNo: item.projectNo || '0',
         projectName: item.projectName || '0',
         customer: item.customer || '0',
         bankCode: item.bankCode || '0',
         bankAccount: item.bankAccount || '0',
         totalAmount: item.totalAmount || 0,
-        payee: item.payee || (type === 'BIM' ? item.handledBy : '0'),
+        payee: finalPayee,
         description: item.description || '0',
-        handledBy: item.handledBy || (type === 'BIM' ? item.payee : '0'),
+        handledBy: finalHandledBy,
         proofDate: item.proofDate || '0',
         invoiceNo: item.invoiceNo || '0',
         sellerTaxId: item.sellerTaxId || '0',
@@ -130,12 +119,12 @@ export const scanInvoiceImage = async (base64Images: string[]): Promise<InvoiceI
         paperReceivedDate: item.paperReceivedDate || '0',
         paymentDate: item.paymentDate || '0',
         expenseType: type,
-        isMatched: isMatched
+        isMatched: matched
       };
     });
 
   } catch (error) {
-    console.error("Scan Error:", error);
+    console.error("Extraction failed:", error);
     throw error;
   }
 };
